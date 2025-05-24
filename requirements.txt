@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+langchain
+google-generativeai
+langchain_google_genai
+pymongo
+python-dotenv
+langchain-community
+langchain-groq
