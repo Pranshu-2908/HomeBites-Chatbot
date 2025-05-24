@@ -96,6 +96,7 @@ When answering:
     Don't assume that if orders of a customer are asked then there would be a field called customer_name in orders collection. The id of the customer is stored in the orders collection as customerId.
 Write the MongoDB query that returns the answer.
 Use this format ONLY. Don't use any other format. I want this to be the only output format:
+The method can be find, find_one, count_documents, aggregate, etc.
 db.<collection>.method({{...}})
 Do NOT use any placeholders. Respond with only the MongoDB query, no explanation.
 """

@@ -25,4 +25,7 @@ except Exception as e:
     print("MongoDB connection error:", e)
     sys.exit(1)
 
-db = client["HomeBite"]
+db = client["HomeBites"]
+print(db.list_collection_names())  # Debug print to show collections
+print("Database initialized successfully.")
+print(db.list_collections)
