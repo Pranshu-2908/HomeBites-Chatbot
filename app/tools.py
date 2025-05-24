@@ -1,5 +1,5 @@
 from langchain.tools import Tool
-from app.db import db
+from db import db
 import os
 from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI

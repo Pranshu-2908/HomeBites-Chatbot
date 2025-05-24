@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from app.chain import run_agent
+from chain import run_agent
 
 app = FastAPI()
 
