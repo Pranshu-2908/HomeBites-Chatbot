@@ -63,7 +63,6 @@ Answer:
 )
     chain = prompt | llm | parser
     result = chain.invoke({"question": query})
-    print(f"*************************************{result}***********************************")
     return f"{result}"
 
 # Create the tool
@@ -78,39 +77,36 @@ def search_database(query: str) -> str:
     """
     Takes a natural language query and returns relevant information from MongoDB.
     """
-    # Define the prompt to convert natural language to MongoDB query
     prompt = PromptTemplate(
         input_variables=["question"],
-        template="""
-You are an assistant that helps convert user questions into MongoDB queries.
+        template='''You are an assistant that converts user questions into MongoDB queries for the HomeBites database.
 
-Database: HomeBites
-Collections: users (fields: role, name), orders (fields: chefId, customerId, status), meals (fields: name, chefId, quantity), carts (fields: customerId, mealId), chefs (fields: name, userId)
+Collections:
+    1) users: role, name, email
+    2) orders: chefId, customerId, status
+    3) meals: name, chefId, quantity, cuisine, price, category, description
+    4) carts: customerId, mealId
 
-Question: {question}
-When answering:
-    if user asks to delete meals, chefs, orders, or users, just return "I cannot delete or update anything in the database.
-    If user asks to update meals, chefs, orders, or users, just return "I cannot delete or update anything in the database."
-    if user asks to delete whole collection, just return "I cannot delete or update anything in the database."
-    Always resolve referenced fields first (e.g., if a question is find meals by "chef_name" or orders for "Customer_name" find the id from users schema and then use this id to find the main result).
-    if user asks for something and that is not a field in the collection, try to resolve reference to the field in the collection. maybe it is a field in another collection.
-    Example: if user asks for orders by "chef_name" or meals for "Customer_name", find the id from users schema and then use this id to find the main result.
-    Don't assume that if meals of a chef are asked then there would be a field called chef_name in meals collection. The id of the chef is stored in the meals collection as chefId.
-    Don't assume that if orders of a customer are asked then there would be a field called customer_name in orders collection. The id of the customer is stored in the orders collection as customerId.
-Write the MongoDB query that returns the answer.
-Use this format ONLY. Don't use any other format. I want this to be the only output format:
-The method can be find, find_one, count_documents, aggregate, etc. Do not use any delete or update query. 
-If user asks to delete or update something, just return "I cannot delete or update anything in the database."
-Never use methods like find_and_modify, find_and_update, delete_one, delete_many, update_one, update_many etc.
-db.<collection>.method({{...}})
-Do NOT use any placeholders. Respond with only the MongoDB query, no explanation.
-"""
+Instructions:
+    * Only use the following collections and their fields: users("role","name","email"), orders("chefId","customerId","status"), meals("name", "chefId", "quantity", "cuisine", "price", "category", "description"), carts("customerId", "mealId"). Do not query any other collection or use any other fields.
+    * If the user asks to delete, update, or drop any document or collection, respond with:
+    * I cannot delete or update anything in the database.
+
+    * Always resolve references properly:
+        - If a question involves names (e.g., chef name or customer name), first query the users collection to get the corresponding _id.
+        - Then use that ID to query the relevant collection field (e.g., chefId, customerId).
+        - Chefs and Customers are both stored in the users collection, so always resolve names through this collection.
+    * Do not assume names exist in other collections—always resolve them through the users collection.
+    * Use only MongoDB shell-compatible methods (e.g., find, countDocuments, aggregate) that do not modify or delete data.
+Output Format:
+Always return only the MongoDB query in this format as a string:
+db.<collection>.<method>({{"<Field>":"<value>"}})
+No explanations, no placeholders, and no extra text.'''
     )
 
     chain = prompt | llm
 
     result = chain.invoke({"question": query})
-    print(f"*************************************{result.content}***********************************")
     return f"{result.content}"
 
 search_tool = Tool(
@@ -128,20 +124,26 @@ def execute_query(query: str) -> str:
 
     if not query.startswith("db."):
         return "Invalid query format. Must start with 'db.'"
+    forbidden_keywords = [
+        "deleteOne", "deleteMany", "remove",
+        "findOneAndDelete", "findByIdAndDelete",
+        "findOneAndRemove", "findByIdAndRemove",
+        "updateOne", "updateMany", "update", "replaceOne",
+        "findOneAndUpdate", "findByIdAndUpdate", "findAndModify",
+        "save", "drop", "dropCollection", "db.dropDatabase"
+    ]
 
+    for forbidden in forbidden_keywords:
+        if forbidden in query:
+            return "Dangerous operation detected: delete, update, or drop operations are not allowed."
     try:
-        # Define the limited globals for eval to access only 'db'
         allowed_globals = {"db": db}
-
-        # Evaluate the query string safely in this limited context
         result = eval(query, allowed_globals, {})
 
-        # If result is a cursor or iterable, convert to list
         if hasattr(result, "next") or hasattr(result, "__iter__"):
             try:
                 return list(result)
             except Exception:
-                # If cannot convert to list, just return str
                 return str(result)
 
         return result

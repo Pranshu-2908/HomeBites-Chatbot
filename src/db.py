@@ -6,12 +6,9 @@ import sys
 
 # Load .env from the project root directory
 env_path = Path(__file__).resolve().parent.parent / ".env"
-print(f"Loading environment variables from: {env_path}")  # Debug print
 load_dotenv(dotenv_path=env_path)
 
 MONGO_URI = os.getenv("MONGO_URI")
-
-print(f"Loaded MONGO_URI: {MONGO_URI!r}")  # Debug print
 
 if not MONGO_URI:
     print("MONGO_URI not found in environment variables.")
@@ -26,6 +23,3 @@ except Exception as e:
     sys.exit(1)
 
 db = client["HomeBites"]
-print(db.list_collection_names())  # Debug print to show collections
-print("Database initialized successfully.")
-print(db.list_collections)
